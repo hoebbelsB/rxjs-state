@@ -1,0 +1,28 @@
+{
+  "name": "rxjs-ephemeral-state",
+  "version": "0.0.0-alpha.0",
+  "description": "Ephemeral state-management helper written in rxjs",
+  "main": "index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BioPhoton/rxjs-ephemeral-state.git"
+  },
+  "keywords": [
+    "RxJS",
+    "State-Management",
+    "ephemeral-state",
+    "local-state"
+  ],
+  "author": "Michael Hladky",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/BioPhoton/rxjs-ephemeral-state/issues"
+  },
+  "homepage": "https://github.com/BioPhoton/rxjs-ephemeral-state#readme",
+  "dependencies": {
+    "rxjs": "^6.5.3"
+  }
+}
