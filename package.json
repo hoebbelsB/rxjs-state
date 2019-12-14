@@ -4,7 +4,8 @@
   "description": "Ephemeral state-management helper written in rxjs",
   "main": "index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "ts-node index-test.ts",
+    "test2": "ts-node ./migration-timeline-struckture/index.ts"
   },
   "repository": {
     "type": "git",
@@ -24,5 +25,9 @@
   "homepage": "https://github.com/BioPhoton/rxjs-ephemeral-state#readme",
   "dependencies": {
     "rxjs": "^6.5.3"
+  },
+  "devDependencies": {
+    "ts-node": "^8.5.4",
+    "typescript": "^3.7.3"
   }
 }

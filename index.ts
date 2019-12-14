@@ -42,25 +42,6 @@ export function select<T>(...ops: OperatorFunction<T, any>[]) {
     );
 }
 
-/*
-interface AbstractLocalState<T> {
-  setSlice(s: Partial<T>): void;
-
-  connectSlice(o: Observable<Partial<T>>): void;
-
-  connectEffect(o: Observable<any>): void;
-
-  select(): Observable<T>;
-  select<A = T>(op: OperatorFunction<T, A>): Observable<A>;
-  select<A = T, B = A>(op1: OperatorFunction<T, A>, op2: OperatorFunction<A, B>): Observable<B>;
-  select<A = T, B = A, C = B>(op1: OperatorFunction<T, A>, op2: OperatorFunction<A, B>, op3: OperatorFunction<B, C>): Observable<C>;
-  select<A extends keyof T>(path: A): Observable<T[A]>;
-  select(...opOrMapFn: OperatorFunction<T, any>[] | string[]): Observable<any>;
-
-  teardown(): void;
-}
-*/
-
 export class LocalState<T> {
     private _subscription = new Subscription();
     private _stateObservables = new Subject<Observable<Partial<T>>>();
@@ -123,7 +104,6 @@ export class LocalState<T> {
      * // ls.connectSlice(of({bar: 'tau'}));
      * ls.connectSlice(of({bar: 7}));
      *
-     * @TODO implement SliceConfig to end a stream automatically with undefined => cleanup of sate
      */
     connectSlice<A extends keyof T>(strOrObs: A | Observable<Partial<T>>, obs?: Observable<T[A]>): void {
         let _obs;
@@ -197,7 +177,7 @@ export class LocalState<T> {
     select<A = T>(op: OperatorFunction<T, A>): Observable<A>;
     select<A = T, B = A>(op1: OperatorFunction<T, A>, op2: OperatorFunction<A, B>): Observable<B>;
     select<A = T, B = A, C = B>(op1: OperatorFunction<T, A>, op2: OperatorFunction<A, B>, op3: OperatorFunction<B, C>): Observable<C>;
-    select<A extends keyof T>(path: A): Observable<T[A]>;
+    select<U extends keyof T>(path: U): Observable<T[U]>;
     select(...opOrMapFn: OperatorFunction<T, any>[] | string[]): Observable<any> {
         if (!opOrMapFn || opOrMapFn.length === 0) {
             return this._state$
@@ -206,12 +186,12 @@ export class LocalState<T> {
                     shareReplay(1)
                 );
         } else if (!this.isOperateFnArray(opOrMapFn)) {
-            const [path] = opOrMapFn;
+            const path = opOrMapFn[0];
             return this._state$.pipe(
                 map((x: T) => x[path]),
                 filter(v => v !== undefined),
                 distinctUntilChanged(),
-                shareReplay(1)
+                shareReplay({bufferSize:1, refCount: true})
             );
         } else {
             return this._state$.pipe(
@@ -236,9 +216,9 @@ export class LocalState<T> {
 
 }
 
-export function stateAccumulator(acc, command): { [key: string]: number } {return ({...acc, ...command})};
+export function stateAccumulator<T>(acc:T, command: Partial<T>): T {return ({...acc, ...command})};
 // @TODO Experiment with cleanup logic for undefined state slices
-export function deleteUndefinedStateAccumulator(state, [keyToDelete, value]: [string, number]): { [key: string]: number } {
+export function deleteUndefinedStateAccumulator<T>(state: T, [keyToDelete, value]: [string, any]): T {
     const isKeyToDeletePresent = keyToDelete in state;
     // The key you want to delete is not stored :)
     if (!isKeyToDeletePresent && value === undefined) {
