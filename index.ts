@@ -9,7 +9,7 @@ import {
     Subscription,
     UnaryFunction
 } from 'rxjs';
-import {distinctUntilChanged, filter, map, mergeAll, publishReplay, scan, shareReplay} from 'rxjs/operators';
+import {distinctUntilChanged, filter, map, mergeAll, publish, publishReplay, scan, shareReplay} from 'rxjs/operators';
 
 /** RxJS INTERNAL */
 function pipeFromArray<T, R>(fns: Array<UnaryFunction<T, R>>): UnaryFunction<T, R> {
@@ -62,7 +62,7 @@ export class LocalState<T> {
     constructor() {
         this._subscription.add((this._state$ as ConnectableObservable<T>).connect());
         this._subscription.add((this._effectSubject
-            .pipe(mergeAll(), publishReplay(1)
+            .pipe(mergeAll(), publish()
             ) as ConnectableObservable<any>).connect()
         );
     }
