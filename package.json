@@ -2,7 +2,7 @@
   "name": "rxjs-ephemeral-state",
   "version": "0.0.0-alpha.0",
   "description": "Ephemeral state-management helper written in rxjs",
-  "main": "index.ts",
+  "main": "rxjs/src/index.ts",
   "scripts": {
     "test": "ts-node index-test.ts",
     "test2": "ts-node ./migration-timeline-struckture/index.ts"
