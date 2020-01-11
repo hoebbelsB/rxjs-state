@@ -1,5 +1,5 @@
-import {ConnectableObservable, merge, Observable, OperatorFunction, Subject, Subscription} from 'rxjs';
-import {map, mergeAll, pluck, publishReplay, scan} from 'rxjs/operators';
+import {ConnectableObservable, merge, Observable, OperatorFunction, queueScheduler, Subject, Subscription} from 'rxjs';
+import {map, mergeAll, observeOn, pluck, publishReplay, scan} from 'rxjs/operators';
 
 import {stateful} from './operators';
 import {defaultStateAccumulation} from "./utils";
@@ -12,8 +12,8 @@ export class EphemeralState<T> {
     private readonly _stateAccumulator: (acc: T, slices: Partial<T>) => T;
 
     private readonly _state$ = merge(
-        this._stateObservables.pipe(mergeAll()),
-        this._stateSlices
+        this._stateObservables.pipe(mergeAll(), observeOn(queueScheduler)),
+        this._stateSlices.pipe(observeOn(queueScheduler))
     ).pipe(
         scan(this._stateAccumulator, {} as T),
         publishReplay(1)
