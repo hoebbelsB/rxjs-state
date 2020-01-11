@@ -4,8 +4,6 @@
   "description": "Ephemeral state-management helper written in rxjs",
   "main": "rxjs/src/index.ts",
   "scripts": {
-    "test": "ts-node index-test.ts",
-    "test2": "ts-node ./migration-timeline-struckture/index.ts"
   },
   "repository": {
     "type": "git",
@@ -24,6 +22,8 @@
   },
   "homepage": "https://github.com/BioPhoton/rxjs-ephemeral-state#readme",
   "dependencies": {
+    "@angular/common": "^8.2.14",
+    "@angular/core": "^8.2.14",
     "rxjs": "^6.5.3"
   },
   "devDependencies": {

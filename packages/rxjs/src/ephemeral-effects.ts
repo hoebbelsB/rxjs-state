@@ -1,9 +1,9 @@
 import {Observable, Subject, Subscription} from 'rxjs';
-import {mergeAll} from 'rxjs/operators';
+import {mergeAll, tap} from 'rxjs/operators';
 
-export class RxjsEffects {
-    private _subscription = new Subscription();
-    private _effectSubject = new Subject<any>();
+export class EphemeralEffects {
+    private readonly _subscription = new Subscription();
+    private readonly _effectSubject = new Subject<any>();
 
     constructor() {
 
@@ -27,9 +27,14 @@ export class RxjsEffects {
      * // ls.connectEffect();
      * ls.connectEffect(of());
      * ls.connectEffect(of().pipe(tap(n => console.log('side effect', n))));
+     * ls.connectEffect(of(), n => console.log('side effect', n));
      */
-    connectEffect(o: Observable<unknown>): void {
-        this._effectSubject.next(o);
+    connectEffect<T>(o: Observable<T>, sideEffectFn?: (argy: T) => void): void {
+        let _o = o;
+        if(sideEffectFn) {
+            _o= o.pipe(tap(sideEffectFn))
+        }
+        this._effectSubject.next(_o);
     }
 
     /**
