@@ -1,32 +1,52 @@
-import {ConnectableObservable, merge, Observable, OperatorFunction, queueScheduler, Subject, Subscription} from 'rxjs';
-import {map, mergeAll, observeOn, pluck, publishReplay, scan} from 'rxjs/operators';
-
+import {ConnectableObservable, merge, noop, Observable, OperatorFunction, Subject, Subscription, UnaryFunction} from 'rxjs';
+import {map, mergeAll, pluck, publishReplay, scan} from 'rxjs/operators';
 import {stateful} from './operators';
-import {defaultStateAccumulation} from "./utils";
 
-export class EphemeralState<T> {
-    private readonly _subscription = new Subscription();
-    private readonly _stateObservables = new Subject<Observable<Partial<T>>>();
-    private readonly _stateSlices = new Subject<Partial<T>>();
-    private readonly _effectSubject = new Subject<any>();
-    private readonly _stateAccumulator: (acc: T, slices: Partial<T>) => T;
+function pipeFromArray<T, R>(fns: Array<UnaryFunction<T, R>>): UnaryFunction<T, R> {
+    if (!fns) {
+        return noop as UnaryFunction<any, any>;
+    }
 
-    private readonly _state$ = merge(
-        this._stateObservables.pipe(mergeAll(), observeOn(queueScheduler)),
-        this._stateSlices.pipe(observeOn(queueScheduler))
+    if (fns.length === 1) {
+        return fns[0];
+    }
+
+    return function piped(input: T): R {
+        return fns.reduce((prev: any, fn: UnaryFunction<T, R>) => fn(prev), input as any);
+    };
+}
+
+
+export class State<T> {
+    private subscription = new Subscription();
+    private stateObservables = new Subject<Observable<Partial<T>>>();
+    private effectSubject = new Subject<any>();
+    private stateSlices = new Subject<Partial<T>>();
+
+    private state$ = merge(
+        this.stateObservables.pipe(mergeAll()),
+        this.stateSlices
     ).pipe(
-        scan(this._stateAccumulator, {} as T),
+        scan(this.stateAccumulator, {} as T),
         publishReplay(1)
     );
 
-    constructor(stateAccumulator: (acc: T, slices: Partial<T>) => T = defaultStateAccumulation) {
-        this._stateAccumulator = stateAccumulator;
+    constructor() {
         this.init();
     }
 
-    private init() {
-        this._subscription.add((this._state$ as ConnectableObservable<T>).connect());
-        this._subscription.add(this._effectSubject.pipe(mergeAll()).subscribe())
+    private stateAccumulator(acc: T, command: Partial<T>): T {
+        const a = (acc as any) as object;
+        const c = (command as any) as object;
+        return ({...a, ...c} as T);
+    }
+
+    init() {
+        this.subscription.add((this.state$ as ConnectableObservable<T>).connect());
+        this.subscription.add(
+            this.effectSubject.pipe(mergeAll())
+                .subscribe()
+        );
     }
 
     /**
@@ -36,70 +56,37 @@ export class EphemeralState<T> {
      *
      * @example
      * const ls = new LocalState<{test: string, bar: number}>();
-     * // Error
-     * // ls.setState({test: 7});
      * ls.setState({test: 'tau'});
-     * // Error
-     * // ls.setState({bar: 'tau'});
      * ls.setState({bar: 7});
      */
     setState(s: Partial<T>): void {
-        this._stateSlices.next(s);
+        this.stateSlices.next(s);
     }
 
     /**
-     * connectState(o: Observable<Partial<T>>) => void
-     *
-     * @param o: Observable<Partial<T>>
-     *
      * @example
      * const ls = new LocalState<{test: string, bar: number}>();
-     * // Error
-     * // ls.connectState(of(7));
-     * // ls.connectState(of('tau'));
-     * ls.connectState(of());
-     * // Error
-     * // ls.connectState(of({test: 7}));
      * ls.connectState(of({test: 'tau'}));
-     * // Error
-     * // ls.connectState(of({bar: 'tau'}));
-     * ls.connectState(of({bar: 7}));
+     * ls.connectState('bar', of(42));
      */
-    connectState<A extends keyof T>(strOrObs: A | Observable<Partial<T>>, obs?: Observable<T[A]>): void {
-        let _obs;
+    connectState<A extends keyof T>(str: A, obs: Observable<T[A]>): void;
+    connectState<A extends keyof T>(obs: Observable<Partial<T>>): void;
+    connectState<A extends keyof T>(strOrObs: any, obs?: any): void {
         if (typeof strOrObs === 'string') {
-            const str: A = strOrObs;
-            const o = obs as Observable<T[A]>;
-            _obs = o.pipe(
-                map(s => ({[str]: s}))
-            );
+            this.stateObservables.next(obs.pipe(map(s => ({[strOrObs as A]: s}))) as Observable<T[A]>);
         } else {
-            const ob = strOrObs as Observable<Partial<T>>;
-            _obs = ob;
+            this.stateObservables.next(strOrObs);
         }
-        this._stateObservables.next(_obs as Observable<Partial<T>> | Observable<T[A]>);
     }
 
     /**
-     * select<R>(operator?: OperatorFunction<T, R>): Observable<T | R>
-     *
-     * @param operator?: OperatorFunction<T, R>
-     *
      * @example
-     * const ls = new LocalState<{test: string, bar: number}>();
+     * const ls = new LocalState<{test: string, foo: {baz: 42}, bar: number}>();
      * ls.select();
-     * // Error
-     * // ls.select('foo');
      * ls.select('test');
-     * // Error
-     * // ls.select(of(7));
+     * ls.select('foo', 'baz');
      * ls.select(mapTo(7));
-     * // Error
-     * // ls.select(map(s => s.foo));
-     * ls.select(map(s => s.test));
-     * // Error
-     * // ls.select(pipe());
-     * // ls.select(pipe(map(s => s.test), startWith(7)));
+     * ls.select(map(s => s.test), startWith('unknown test value'));
      * ls.select(pipe(map(s => s.test), startWith('unknown test value')));
      */
     select(): Observable<T>;
@@ -152,25 +139,31 @@ export class EphemeralState<T> {
         K5 extends keyof T[K1][K2][K3][K4],
         K6 extends keyof T[K1][K2][K3][K4][K5]>(k1: K1, k2: K2, k3: K3, k4: K4, k5: K5, k6: K6): Observable<T[K1][K2][K3][K4][K5][K6]>;
     // ===========================
-    select(...opOrMapFn: OperatorFunction<T, any>[] | string[]): Observable<any> {
+    select(...opOrMapFn: any[]): Observable<any> {
         if (!opOrMapFn || opOrMapFn.length === 0) {
-            return this._state$
+            return this.state$
                 .pipe(
                     stateful()
                 );
-        } else if (!this.isOperateFnArray(opOrMapFn)) {
-            const path = opOrMapFn as string[];
-            return this._state$.pipe(
+        } else if (!this.isStringArray(opOrMapFn)) {
+            const path = (opOrMapFn as any) as string[];
+            return this.state$.pipe(
                 pluck(...path),
+                stateful()
+            );
+        } else if (this.isOperateFnArray(opOrMapFn)) {
+            const oprs = opOrMapFn as OperatorFunction<T, any>[];
+            return this.state$.pipe(
+                pipeFromArray(oprs),
                 stateful()
             );
         }
 
-        opOrMapFn.push(stateful());
+        throw new Error('Wrong params passed' + JSON.stringify(opOrMapFn));
+    }
 
-        return this._state$.pipe(
-            ...opOrMapFn as [],
-        );
+    holdEffect(o: Observable<any>): void {
+        this.effectSubject.next(o);
     }
 
 
@@ -181,12 +174,17 @@ export class EphemeralState<T> {
      * used to connect to the `OnDestroy` life-cycle hook of services, components, directives, pipes
      */
     teardown(): void {
-        this._subscription.unsubscribe();
+        this.subscription.unsubscribe();
     }
 
-    private isOperateFnArray(op: OperatorFunction<T, any>[] | string[]): op is OperatorFunction<T, any>[] {
+    private isOperateFnArray(op: any[]): op is OperatorFunction<T, any>[] {
+        return op.every((i: any) => typeof i !== 'string');
+    }
+
+    private isStringArray(op: any[]): op is string[] {
         return op.every((i: any) => typeof i !== 'string');
     }
 
 }
+
 

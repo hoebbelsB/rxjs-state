@@ -1,17 +1,17 @@
 import {Observable, Subject, Subscription} from 'rxjs';
 import {mergeAll, tap} from 'rxjs/operators';
 
-export class EphemeralEffects {
-    private readonly _subscription = new Subscription();
-    private readonly _effectSubject = new Subject<any>();
+export class Effects {
+    private readonly subscription = new Subscription();
+    private readonly effectSubject = new Subject<any>();
 
     constructor() {
-
+        this.init()
     }
 
     init() {
-        this._subscription.add(
-            this._effectSubject.pipe(mergeAll())
+        this.subscription.add(
+            this.effectSubject.pipe(mergeAll())
                 .subscribe()
         );
     }
@@ -29,12 +29,13 @@ export class EphemeralEffects {
      * ls.connectEffect(of().pipe(tap(n => console.log('side effect', n))));
      * ls.connectEffect(of(), n => console.log('side effect', n));
      */
-    connectEffect<T>(o: Observable<T>, sideEffectFn?: (argy: T) => void): void {
-        let _o = o;
+    connectEffect<T>(observableWithSideEffect: Observable<T>): void;
+    connectEffect<T>(observable: Observable<T>, sideEffectFn: (arg: T) => void): void;
+    connectEffect<T>(obsOrObsWithSideEffect: Observable<T>, sideEffectFn?: (arg: T) => void): void {
         if(sideEffectFn) {
-            _o= o.pipe(tap(sideEffectFn))
+            this.effectSubject.next(obsOrObsWithSideEffect.pipe(tap(sideEffectFn)));
         }
-        this._effectSubject.next(_o);
+        this.effectSubject.next(obsOrObsWithSideEffect);
     }
 
     /**
@@ -44,7 +45,7 @@ export class EphemeralEffects {
      * used to connect to the `OnDestroy` life-cycle hook of services, components, directives, pipes
      */
     teardown(): void {
-        this._subscription.unsubscribe();
+        this.subscription.unsubscribe();
     }
 
 }
