@@ -162,8 +162,12 @@ export class State<T> {
         throw new Error('Wrong params passed' + JSON.stringify(opOrMapFn));
     }
 
-    holdEffect(o: Observable<any>): void {
-        this.effectSubject.next(o);
+    holdEffect<S>(observableWithSideEffect: Observable<S>): void;
+    holdEffect<S>(obsOrObsWithSideEffect: Observable<S>, sideEffectFn?: (arg: S) => void): void {
+      if (sideEffectFn) {
+        this.effectSubject.next(obsOrObsWithSideEffect.pipe(tap(sideEffectFn)));
+      }
+      this.effectSubject.next(obsOrObsWithSideEffect);
     }
 
 
