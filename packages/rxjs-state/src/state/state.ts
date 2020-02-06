@@ -1,13 +1,5 @@
-import {
-    CompletionObserver,
-    ErrorObserver, MonoTypeOperatorFunction,
-    NextObserver,
-    Observable,
-    OperatorFunction, PartialObserver,
-    Subscribable,
-    Subscription, Unsubscribable,
-} from 'rxjs';
-import {delay, map, pluck, tap,} from 'rxjs/operators';
+import {Observable, OperatorFunction, Subscribable, Subscription, Unsubscribable,} from 'rxjs';
+import {map, pluck, tap,} from 'rxjs/operators';
 import {pipeFromArray} from 'rxjs/internal/util/pipe';
 import {
     createAccumulationObservable,
@@ -25,10 +17,8 @@ import {
  * const ls = new State<{test: string, bar: number}>();
  */
 export class State<T> implements Subscribable<any> {
-
     private accumulationObservable = createAccumulationObservable<T>();
     private effectObservable = createSideEffectObservable();
-    private subscription = new Subscription();
 
     $ = this.accumulationObservable.state$;
 
@@ -151,13 +141,11 @@ export class State<T> implements Subscribable<any> {
     ): Observable<T[K1][K2][K3][K4][K5][K6]>;
     // ===========================
     select<R>(...opOrMapFn: OperatorFunction<T, R>[] | string[]): Observable<T | R> {
-        console.log('opOrMapFn', opOrMapFn, isStringArrayGuard(opOrMapFn), isOperateFnArrayGuard(opOrMapFn));
         if (!opOrMapFn || opOrMapFn.length === 0) {
             return this.$.pipe(stateful());
         } else if (isStringArrayGuard(opOrMapFn)) {
             return this.$.pipe(stateful(pluck(...opOrMapFn)));
         } else if (isOperateFnArrayGuard(opOrMapFn)) {
-            console.log('opOrMapFn', opOrMapFn);
             return this.$.pipe(stateful(pipeFromArray(opOrMapFn)));
         }
         throw new WrongSelectParamsError();
@@ -177,15 +165,11 @@ export class State<T> implements Subscribable<any> {
         this.effectObservable.nextEffectObservable(obsOrObsWithSideEffect);
     }
 
-    subscribe(observer?: NextObserver<T> | ErrorObserver<T> | CompletionObserver<T>): Unsubscribable;
-    subscribe(next: null | undefined, error: null | undefined, complete: () => void): Unsubscribable;
-    subscribe(next: null | undefined, error: (error: any) => void, complete?: () => void): Unsubscribable;
-    subscribe(next: <T>(value: T) => void, error: null | undefined, complete: () => void): Unsubscribable;
-    subscribe(next?: <T>(value: T) => void, error?: (error: any) => void, complete?: () => void): Unsubscribable;
-    subscribe(observer?: PartialObserver<T> | null | undefined | (<T>(value: T) => void), error?: null | undefined | ((error: any) => void), complete?: () => void): Unsubscribable {
-        this.subscription.add(this.accumulationObservable.subscribe());
-        this.subscription.add(this.effectObservable.subscribe());
-        return this.subscription;
+    subscribe(): Unsubscribable {
+        const subscription = new Subscription();
+        subscription.add(this.accumulationObservable.subscribe());
+        subscription.add(this.effectObservable.subscribe());
+        return subscription;
     }
 
 }

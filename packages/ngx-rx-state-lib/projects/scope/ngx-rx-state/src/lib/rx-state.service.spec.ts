@@ -1,9 +1,9 @@
 import { createServiceFactory, SpectatorService } from '@ngneat/spectator';
-import { NgxRxStateService } from './ngx-rx-state.service';
+import { RxStateService } from './rx-state.service';
 
 describe('NgxRxStateService', () => {
-  let spectator: SpectatorService<NgxRxStateService>;
-  const createService = createServiceFactory(NgxRxStateService);
+  let spectator: SpectatorService<RxStateService>;
+  const createService = createServiceFactory(RxStateService);
 
   beforeEach(() => spectator = createService());
 
